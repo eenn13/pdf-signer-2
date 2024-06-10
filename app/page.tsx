@@ -12,6 +12,8 @@ GlobalWorkerOptions.workerSrc =
 const Home = () => {
   const [pdfPages, setPdfPages] = useState<PDFPageProxy[]>([]);
   const [currentPage, setCurrentPage] = useState<PDFPageProxy>();
+  const [pdfSaved, setPdfSaved] = useState(false);
+  const [showFinalButton, setShowFinalButton] = useState(false);
   const hasFetched = useRef(false);
   const signedAll = useRef(false);
   const [inputValue, setInputValue] = useState("");
@@ -41,25 +43,14 @@ const Home = () => {
   }, []);
 
   const handleSign = async () => {
-    if(signedAll.current) {
+    if (signedAll.current) {
       await saveSignatureData();
       return;
-      /*
-       PDF'in imzalandığı bilgiyi ve 
-text box içindeki bilgiyi backend'e kayıt için gönderin.
-
-7- Backend:
-Alınan imzalanmış PDF ve text box bilgilerini kaydedin.
-
-8- Frontend:
-PDF'in başarıyla kaydedildiği bilgisi alındığında, "İmzalı PDF'i Göster" 
-butonunu render edin.
-
-9- Frontend:
-"İmzalı PDF'i Göster" butonuna basıldığında, imzalanmış PDF'i tekrar render edin.
-
-       */
     }
+    setCurrentPageIndex((curr) => (curr + 1) % pdfPages.length);
+  };
+
+  const nextPage = async () => {
     setCurrentPageIndex((curr) => (curr + 1) % pdfPages.length);
   }
 
@@ -68,73 +59,87 @@ butonunu render edin.
   };
 
   const saveSignatureData = async () => {
-    const response = await fetch("/api/save-signature", {
+    const response = await fetch("/api/create-pdf");
+    const pdfData = await response.arrayBuffer();
+    const pdfBase64 = Buffer.from(pdfData).toString("base64");
+
+    const result = await fetch("/api/save-signature", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ inputValue }),
+      body: JSON.stringify({ inputValue, pdfData: pdfBase64 }),
     });
 
-    if (response.ok) {
-      alert("Data saved successfully!");
-    } else {
-      alert("Failed to save data.");
-    }
+    setPdfSaved(result.ok);
+    setShowFinalButton(true);
   };
 
   useEffect(() => {
     hasFetched.current = false;
+    console.log("index: ", currentPageIndex);
     setCurrentPage(pdfPages[currentPageIndex]);
   }, [currentPageIndex]);
 
-  return (
+  const handleShowBtn = () => {
+    setShowFinalButton((curr) => !curr);
+    setCurrentPageIndex(0);
+  };
+
+  return pdfSaved && showFinalButton ? (
+    <button
+      onClick={handleShowBtn}
+      style={{
+        marginTop: "20px",
+        padding: "10px 20px",
+        backgroundColor: "green",
+        color: "white",
+        border: "none",
+        borderRadius: "5px",
+        cursor: "pointer",
+      }}
+    >
+      İmzalı PDF'i Göster
+    </button>
+  ) : (
     <div>
       {pdfPages.length > 0 && currentPage && (
         <PDFPage
           page={currentPage}
           onSign={handleSign}
+          nextPage={nextPage}
           hasFetched={hasFetched}
           signedAll={signedAll}
           pageIndex={currentPageIndex}
           inputValue={inputValue}
           onInputChange={handleInputChange}
+          allSaved={pdfSaved}
         />
       )}
     </div>
-    // <div>
-    //   {pdfPages.map((page, index) => (
-    //     <PDFPage key={index} page={page} pageIndex={index} />
-    //   ))}
-    // </div>
   );
 };
 
-/*
-({
-  page,
-  pageIndex,
-}: {
-  page: PDFPageProxy;
-  pageIndex: number;
-})
-*/
 const PDFPage = ({
   page,
   onSign,
+  nextPage,
   hasFetched,
   signedAll,
   pageIndex,
   inputValue,
   onInputChange,
+  allSaved,
 }: {
   page: PDFPageProxy;
   onSign: () => void;
+  nextPage: () => void;
   hasFetched: MutableRefObject<boolean>;
   signedAll: MutableRefObject<boolean>;
   pageIndex: number;
   inputValue: string;
   onInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  allSaved: boolean;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -198,16 +203,38 @@ const PDFPage = ({
           left: "50%",
           transform: "translateX(-50%)",
           padding: "5px 10px",
-          backgroundColor: "blue",
+          backgroundColor: allSaved ? "gray" : "blue",
           color: "white",
           border: "none",
           borderRadius: "5px",
-          cursor: "pointer",
+          cursor: allSaved ? "" : "pointer",
         }}
         onClick={handleSign}
+        disabled={allSaved}
       >
-        İmzala
+        {allSaved ? "İmzalanmıştır" : "İmzala"}
       </button>
+      {allSaved ? (
+        <button
+          style={{
+            position: "absolute",
+            bottom: "10px",
+            left: "70%",
+            transform: "translateX(-50%)",
+            padding: "5px 10px",
+            backgroundColor: allSaved ? "gray" : "blue",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+          }}
+          onClick={nextPage}
+        >
+          Sıradaki
+        </button>
+      ) : (
+        <></>
+      )}
     </div>
   );
 };
