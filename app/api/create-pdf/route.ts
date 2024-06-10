@@ -5,7 +5,7 @@ export async function GET() {
   const pdfDoc = await PDFDocument.create();
 
   // İlk sayfa
-  const page1 = pdfDoc.addPage([600, 400]);
+  const page1 = pdfDoc.addPage([600, 500]);
   page1.drawText('Bu bir test metnidir - Sayfa 1', {
     x: 50,
     y: 350,
@@ -14,7 +14,7 @@ export async function GET() {
   });
 
   // İkinci sayfa
-  const page2 = pdfDoc.addPage([600, 400]);
+  const page2 = pdfDoc.addPage([600, 500]);
   page2.drawText('Bu bir test metnidir - Sayfa 2', {
     x: 50,
     y: 350,
@@ -23,7 +23,7 @@ export async function GET() {
   });
 
   // Üçüncü sayfa
-  const page3 = pdfDoc.addPage([600, 400]);
+  const page3 = pdfDoc.addPage([600, 500]);
   page3.drawText('Bu bir test metnidir - Sayfa 3', {
     x: 50,
     y: 350,

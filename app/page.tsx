@@ -13,6 +13,7 @@ const Home = () => {
   const [pdfPages, setPdfPages] = useState<PDFPageProxy[]>([]);
   const [currentPage, setCurrentPage] = useState<PDFPageProxy>();
   const hasFetched = useRef(false);
+  const signedAll = useRef(false);
   const [inputValue, setInputValue] = useState("");
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -39,12 +40,47 @@ const Home = () => {
     fetchAndRenderPDF();
   }, []);
 
-  const handleSign = () => {
+  const handleSign = async () => {
+    if(signedAll.current) {
+      await saveSignatureData();
+      return;
+      /*
+       PDF'in imzalandığı bilgiyi ve 
+text box içindeki bilgiyi backend'e kayıt için gönderin.
+
+7- Backend:
+Alınan imzalanmış PDF ve text box bilgilerini kaydedin.
+
+8- Frontend:
+PDF'in başarıyla kaydedildiği bilgisi alındığında, "İmzalı PDF'i Göster" 
+butonunu render edin.
+
+9- Frontend:
+"İmzalı PDF'i Göster" butonuna basıldığında, imzalanmış PDF'i tekrar render edin.
+
+       */
+    }
     setCurrentPageIndex((curr) => (curr + 1) % pdfPages.length);
-  };
+  }
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(event.target.value);
+  };
+
+  const saveSignatureData = async () => {
+    const response = await fetch("/api/save-signature", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ inputValue }),
+    });
+
+    if (response.ok) {
+      alert("Data saved successfully!");
+    } else {
+      alert("Failed to save data.");
+    }
   };
 
   useEffect(() => {
@@ -59,6 +95,7 @@ const Home = () => {
           page={currentPage}
           onSign={handleSign}
           hasFetched={hasFetched}
+          signedAll={signedAll}
           pageIndex={currentPageIndex}
           inputValue={inputValue}
           onInputChange={handleInputChange}
@@ -86,6 +123,7 @@ const PDFPage = ({
   page,
   onSign,
   hasFetched,
+  signedAll,
   pageIndex,
   inputValue,
   onInputChange,
@@ -93,6 +131,7 @@ const PDFPage = ({
   page: PDFPageProxy;
   onSign: () => void;
   hasFetched: MutableRefObject<boolean>;
+  signedAll: MutableRefObject<boolean>;
   pageIndex: number;
   inputValue: string;
   onInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -117,6 +156,13 @@ const PDFPage = ({
     }
   }, [page]);
 
+  const handleSign = () => {
+    if (pageIndex === 2) {
+      signedAll.current = true;
+    }
+    onSign();
+  };
+
   return (
     <div
       style={{
@@ -136,12 +182,12 @@ const PDFPage = ({
           placeholder="Enter your information"
           style={{
             position: "absolute",
-            top: "10px",
+            top: "500px",
             left: "50%",
             transform: "translateX(-50%)",
-            padding: "5px",
+            padding: "20px 40px",
             borderRadius: "5px",
-            border: "1px solid #ccc",
+            border: "1px solid #000",
           }}
         />
       )}
@@ -158,9 +204,9 @@ const PDFPage = ({
           borderRadius: "5px",
           cursor: "pointer",
         }}
-        onClick={onSign}
+        onClick={handleSign}
       >
-        Sign
+        İmzala
       </button>
     </div>
   );
